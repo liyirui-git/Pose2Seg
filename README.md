@@ -135,7 +135,10 @@ You will see output result in  ```Pose2Seg/output``` folder. The segment part wi
 ![example](figures/785.png)
 
 You can change this color in test.py in line 49.
+<br/>
+<br/>
 
+The origin Pose2Seg readme is following: 
 >
 ># Pose2Seg
 >
