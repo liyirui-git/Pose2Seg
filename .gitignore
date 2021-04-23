@@ -10,5 +10,6 @@ init
 logs
 snapshot
 /data/
+/data-bikeperson/
 /imagenet_pretrain/
 /output/
