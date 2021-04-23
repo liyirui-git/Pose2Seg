@@ -1,9 +1,14 @@
 *.pyc
 *.so
 *.pkl
+*.zip
 
+maskinfo.txt
 .ipynb_checkpoints/
 __pycache__
 init
 logs
 snapshot
+/data/
+/imagenet_pretrain/
+/output/

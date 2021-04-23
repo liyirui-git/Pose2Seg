@@ -92,8 +92,8 @@ class CocoDatasetInfo():
         # self.__len__() reference to self.image_ids
         self.image_ids = self.COCO.getImgIds(catIds=self.category_ids)
         self.image_ids.sort()
-        #self.image_ids = self.image_ids[0:200] # for debug.
-        #self.image_ids = [9,9,9,9,9]
+        # self.image_ids = self.image_ids[0:200] # for debug.
+        # self.image_ids = [9,9,9,9,9]
         
         # Initialize COCO keypoint information.
         self.keypoints = None
@@ -230,12 +230,14 @@ class CocoDatasetInfo():
             x2 = min(width - 1., max(0., x2))
             y2 = min(height - 1., max(0., y2))
             # Require non-zero seg area and more than 1x1 box size
+            # print(obj['area'])
+            # print(str([x1,x2,y1,y2]))
             if obj['area'] > 0 and x2 > x1 and y2 > y1:
                 obj['clean_bbox'] = [x1, y1, x2, y2]
                 valid_objs.append(obj)
                 valid_segms.append(obj['segmentation'])
         num_valid_objs = len(valid_objs)
-
+        
         if num_valid_objs==0: ## is_valid
             # print ('ignore %d'%idx)
             return self.getitem(idx+1)

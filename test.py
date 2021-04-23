@@ -1,6 +1,8 @@
 import argparse
 import numpy as np
+import cv2
 from tqdm import tqdm
+import os
 
 from modeling.build_model import Pose2Seg
 from datasets.CocoDatasetInfo import CocoDatasetInfo, annToMask
@@ -22,6 +24,9 @@ def test(model, dataset='cocoVal', logger=print):
     
     results_segm = []
     imgIds = []
+    counter = 0
+    # print("get mask result >>>")
+    # mask_info = open("maskinfo.txt", "w")
     for i in tqdm(range(len(datainfos))):
         rawdata = datainfos[i]
         img = rawdata['data']
@@ -30,11 +35,18 @@ def test(model, dataset='cocoVal', logger=print):
         height, width = img.shape[0:2]
         gt_kpts = np.float32(rawdata['gt_keypoints']).transpose(0, 2, 1) # (N, 17, 3)
         gt_segms = rawdata['segms']
-        gt_masks = np.array([annToMask(segm, height, width) for segm in gt_segms])
+        # print(gt_segms)
+        gt_masks = np.array([])
+        # gt_masks = np.array([annToMask(segm, height, width) for segm in gt_segms])
             
         output = model([img], [gt_kpts], [gt_masks])
-    
+
+        # 一张图片上可能因为有多个annotation，所以就有多个mask
         for mask in output[0]:
+            for i in range(img.shape[0]):
+                for j in range(img.shape[1]):
+                    if mask[i][j] == 1:
+                        img[i][j] = [0, 0, 255]
             maskencode = maskUtils.encode(np.asfortranarray(mask))
             maskencode['counts'] = maskencode['counts'].decode('ascii')
             results_segm.append({
@@ -43,8 +55,10 @@ def test(model, dataset='cocoVal', logger=print):
                     "score": 1.0,
                     "segmentation": maskencode
                 })
+        if not os.path.exists("output/"):
+            os.makedirs("output/")
+        cv2.imwrite(os.path.join("output/", str(image_id) + ".png"), img)
         imgIds.append(image_id)
-    
     
     def do_eval_coco(image_ids, coco, results, flag):
         from pycocotools.cocoeval import COCOeval
@@ -59,12 +73,13 @@ def test(model, dataset='cocoVal', logger=print):
         cocoEval.summarize() 
         return cocoEval
     
-    cocoEval = do_eval_coco(imgIds, datainfos.COCO, results_segm, 'segm')
-    logger('[POSE2SEG]          AP|.5|.75| S| M| L|    AR|.5|.75| S| M| L|')
-    _str = '[segm_score] %s '%dataset
-    for value in cocoEval.stats.tolist():
-        _str += '%.3f '%value
-    logger(_str)
+    ## 这里做的是evaluation
+    # cocoEval = do_eval_coco(imgIds, datainfos.COCO, results_segm, 'segm')
+    # logger('[POSE2SEG]          AP|.5|.75| S| M| L|    AR|.5|.75| S| M| L|')
+    # _str = '[segm_score] %s '%dataset
+    # for value in cocoEval.stats.tolist():
+    #     _str += '%.3f '%value
+    # logger(_str)
     
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Pose2Seg Testing")
