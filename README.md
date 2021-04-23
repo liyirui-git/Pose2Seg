@@ -15,8 +15,102 @@ You can use the same environment as Pose2Seg. And you can get my env in pose2seg
 
 
 ## 3 transform AlphaPose result format to Pose2Seg format
-After get the keypoints result from AlphaPose, you can use xxx.py to transform the AlphaPose result to Pose2Seg format result.
+After get the keypoints result from AlphaPose, you can use a script to transform the AlphaPose result to Pose2Seg format result.
 
+Here is some part of mine:
+```python
+    def trans_to_coco_format(self):
+        skeleton_list = [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12], [7, 13], [6, 7], [6, 8], [7, 9],
+                         [8, 10],
+                         [9, 11], [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]]
+        keypoint_name_list = ["nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder",
+                              "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist",
+                              "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle",
+                              "right_ankle"]
+        # 得到 images 和 annotations
+        coco_query_images_list = []
+        coco_test_images_list = []
+        coco_train_images_list = []
+        coco_query_annotations_list = []
+        coco_test_annotations_list = []
+        coco_train_annotations_list = []
+        image_name_to_id = {}
+        img_id = 0
+        anno_id = 0
+        for i in range(len(self.annotations_list)):
+            int_keypoints = []
+            image_name = self.annotations_list[i]["image_id"]
+            image_path = self.img_name_path_dir[image_name]
+            image_size = imagesize.get(image_path)
+
+            # 那这里得判断一下这个图片是不是新出现的
+            new_image_flag = False
+            if image_name not in image_name_to_id:
+                image_name_to_id[image_name] = img_id
+                img_id = img_id + 1
+                new_image_flag = True
+            image_id = image_name_to_id[image_name]
+
+            for k in self.annotations_list[i]["keypoints"]:
+                int_keypoints.append(int(round(k, 0)))
+
+            annotation = {"image_id": image_id,
+                          "area": 1,
+                          "num_keypoints": len(self.annotations_list[i]["keypoints"]),
+                          "iscrowd": 0,
+                          "id": anno_id,
+                          "category_id": 1,
+                          "keypoints": int_keypoints,
+                          'segmentation': [[]],
+                          'bbox': [0, 0, 2, 2]
+                          }
+
+            # 这里的id不应该是单独的img_id
+            image = {"id": image_id,
+                     "file_name": image_name,
+                     "height": image_size[1],
+                     "width": image_size[0]
+                     }
+
+            if image_path.find("query") != -1:
+                coco_query_annotations_list.append(annotation)
+                if new_image_flag:
+                    coco_query_images_list.append(image)
+            elif image_path.find("bounding_box_test") != -1:
+                coco_test_annotations_list.append(annotation)
+                if new_image_flag:
+                    coco_test_images_list.append(image)
+            else:
+                coco_train_annotations_list.append(annotation)
+                if new_image_flag:
+                    coco_train_images_list.append(image)
+            anno_id = anno_id + 1
+            utils.progress_bar(anno_id, len(self.annotations_list))
+
+        print("total images: " + str(img_id))
+        print("total annotations: " + str(anno_id))
+
+        # 得到 categories
+        coco_categories = [{"supercategory": "person",
+                           "id": 1,
+                           "name": "person",
+                           "keypoints": keypoint_name_list,
+                           "skeleton": skeleton_list
+                           }]
+        coco_images_list = [coco_query_images_list, coco_test_images_list, coco_train_images_list]
+        coco_annotations_list = [coco_query_annotations_list, coco_test_annotations_list, coco_train_annotations_list]
+        subfolder_name_list = ["query", "test", "train"]
+        for i in range(3):
+            coco_format_data = {"images": coco_images_list[i],
+                                "annotations": coco_annotations_list[i],
+                                "categories": coco_categories}
+            json_str = json.dumps(coco_format_data)
+            json_file_name = "coco_format_" + subfolder_name_list[i] + ".json"
+            json_file = open(os.path.join(self.pose_img_folder_path, json_file_name), "w")
+            json_file.write(json_str)
+```
+
+Note that, `area`, `segmentation` and `bbox` in `annotations` is not nesserary for running on own datasets, said buy Pose2Seg creater, so I give it a fixed value.
 
 ## 4 place your images and pose file
 Before get segmentation result of Pose2Seg, you should place your images and pose file in the folder named ```Pose2Seg/data/```, the folder instructure is as below.
@@ -32,7 +126,7 @@ As you can see, I do some change from Pose2Seg folder instructure. Because, I do
 
 ## 5 do testing
 You can get into ```Pose2Seg/``` and use the command below to run this test on your dataset:
-```
+```bash
 python test.py --weights pose2seg_release.pkl --coco
 ```
 You will see output result in  ```Pose2Seg/output``` folder. The segment part will be showed with **red color** as following:
